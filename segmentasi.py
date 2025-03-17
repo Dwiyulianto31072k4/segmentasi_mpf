@@ -24,12 +24,7 @@ def load_data(file):
     data['CUST_NO'] = data['CUST_NO'].astype(str)  # Pastikan CUST_NO bertipe string
     data = data.dropna(subset=['CUST_NO'])  # Hilangkan NaN jika ada
     
-    # **Tambahkan fitur Repeat_Customer**
-    if 'TOTAL_PRODUCT_MPF' in data.columns:
-        data['TOTAL_PRODUCT_MPF'] = pd.to_numeric(data['TOTAL_PRODUCT_MPF'], errors='coerce')
-        data['Repeat_Customer'] = data['TOTAL_PRODUCT_MPF'].apply(lambda x: 1 if x > 1 else 0)
-    else:
-        data['Repeat_Customer'] = 0  # Default jika kolom tidak ada
+    data['Repeat_Customer'] = data['TOTAL_PRODUCT_MPF'].apply(lambda x: 1 if x > 1 else 0)
     
     return data
 
