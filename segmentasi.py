@@ -20,10 +20,14 @@ def load_data(file):
     for col in date_cols:
         data[col] = pd.to_datetime(data[col], errors='coerce')
     
-    data['Usia'] = 2024 - data['BIRTH_DATE'].dt.year
-    data['CUST_NO'] = data['CUST_NO'].astype(str)  # Pastikan CUST_NO bertipe string
-    data = data.dropna(subset=['CUST_NO'])  # Hilangkan NaN jika ada
+    # Tangani nilai NaN di BIRTH_DATE
+    data['Usia'] = 2024 - data['BIRTH_DATE'].dt.year.fillna(0).astype(int)
     
+    # Pastikan CUST_NO tidak kosong dan bertipe string
+    data['CUST_NO'] = data['CUST_NO'].astype(str).fillna("Unknown")
+    data = data.dropna(subset=['CUST_NO'])  
+
+    # Tambahkan Repeat_Customer
     data['Repeat_Customer'] = data['TOTAL_PRODUCT_MPF'].apply(lambda x: 1 if x > 1 else 0)
     
     return data
@@ -32,15 +36,17 @@ def load_data(file):
 def perform_clustering(data, n_clusters=4):
     today_date = datetime.datetime(2024, 12, 31)
     data['LAST_MPF_DATE'] = pd.to_datetime(data['LAST_MPF_DATE'], errors='coerce')
-    data['Recency'] = (today_date - data['LAST_MPF_DATE']).dt.days
+
+    # Jika LAST_MPF_DATE kosong, isi dengan tanggal lama agar tidak menghasilkan NaN di Recency
+    data['Recency'] = (today_date - data['LAST_MPF_DATE']).dt.days.fillna(9999).astype(int)
     
-    # **Cek apakah semua kolom tersedia sebelum groupby()**
+    # Pastikan semua kolom yang dibutuhkan ada
     required_columns = ['CUST_NO', 'LAST_MPF_DATE', 'TOTAL_PRODUCT_MPF', 'TOTAL_AMOUNT_MPF', 'Repeat_Customer', 'Usia']
     missing_columns = [col for col in required_columns if col not in data.columns]
 
     if missing_columns:
-        st.error(f"Kolom berikut tidak ditemukan dalam dataset: {missing_columns}")
-        return pd.DataFrame()  # Mengembalikan DataFrame kosong agar tidak error
+        st.warning(f"Kolom berikut tidak ditemukan dalam dataset: {missing_columns}")
+        return pd.DataFrame()
     
     rfm = data.groupby('CUST_NO').agg({
         'Recency': 'min',
@@ -51,16 +57,31 @@ def perform_clustering(data, n_clusters=4):
     }).reset_index()
     
     rfm.rename(columns={'TOTAL_PRODUCT_MPF': 'Frequency', 'TOTAL_AMOUNT_MPF': 'Monetary'}, inplace=True)
+    
+    # Isi NaN sebelum log transform
+    rfm['Frequency'].fillna(0, inplace=True)
+    rfm['Monetary'].fillna(0, inplace=True)
+
+    # Transformasi log
     rfm['Frequency_log'] = np.log1p(rfm['Frequency'])
     rfm['Monetary_log'] = np.log1p(rfm['Monetary'])
+    
+    # Segmentasi usia
     rfm['Usia_Segment'] = rfm['Usia'].apply(lambda x: 1 if 25 <= x <= 50 else 0)
+
+    # Pastikan semua nilai NaN diisi sebelum clustering
+    rfm.fillna(0, inplace=True)
     
+    # Normalisasi
     features = ['Recency', 'Frequency_log', 'Monetary_log', 'Repeat_Customer', 'Usia_Segment']
-    rfm_norm = rfm[features].apply(zscore)
+    scaler = StandardScaler()
+    rfm_scaled = scaler.fit_transform(rfm[features])
+
+    # K-Means
+    kmeans = KMeans(n_clusters=n_clusters, init='k-means++', random_state=42, n_init=10)
+    rfm['Cluster'] = kmeans.fit_predict(rfm_scaled)
     
-    kmeans = KMeans(n_clusters=n_clusters, init='k-means++', random_state=42)
-    rfm['Cluster'] = kmeans.fit_predict(rfm_norm)
-    
+    # Mapping segmentasi
     segment_map_optimal = {
         0: "Potential Loyalists",
         1: "Responsive Customers",
@@ -93,23 +114,31 @@ if uploaded_file is not None:
     st.write("### Clustering Pelanggan")
     num_clusters = st.slider("Pilih jumlah cluster:", min_value=2, max_value=10, value=4)
     clustered_data = perform_clustering(data, num_clusters)
-    st.write("Hasil Clustering:")
-    st.dataframe(clustered_data.head())
     
-    plt.figure(figsize=(10,6))
-    sns.scatterplot(x=clustered_data['Recency'], y=clustered_data['Monetary_log'], hue=clustered_data['Segmentasi_optimal'], palette='viridis')
-    plt.title('Customer Segmentation after Optimization')
-    plt.xlabel('Recency (Days)')
-    plt.ylabel('Monetary (Log Transformed)')
-    plt.legend()
-    st.pyplot(plt)
-    
-    plt.figure(figsize=(12, 6))
-    sns.boxplot(x=clustered_data['Segmentasi_optimal'], y=clustered_data['Monetary_log'])
-    plt.title('Distribusi Monetary Log per Cluster')
-    plt.xlabel('Cluster')
-    plt.ylabel('Monetary (Log Transformed)')
-    plt.xticks(rotation=45)
-    st.pyplot(plt)
-    
-    st.download_button("Download Hasil Clustering", clustered_data.to_csv(index=False), "rfm_segmentasi.csv", "text/csv")
+    if not clustered_data.empty:
+        st.write("Hasil Clustering:")
+        st.dataframe(clustered_data.head())
+        
+        # Scatter plot
+        plt.figure(figsize=(10,6))
+        sns.scatterplot(x=clustered_data['Recency'], y=clustered_data['Monetary_log'], 
+                        hue=clustered_data['Segmentasi_optimal'], size=clustered_data['Frequency_log'], 
+                        sizes=(10, 200), alpha=0.8, palette='viridis')
+        plt.title('Customer Segmentation after Optimization')
+        plt.xlabel('Recency (Days)')
+        plt.ylabel('Monetary (Log Transformed)')
+        plt.legend()
+        st.pyplot(plt)
+        
+        # Boxplot
+        plt.figure(figsize=(12, 6))
+        sns.boxplot(x=clustered_data['Segmentasi_optimal'], y=clustered_data['Monetary_log'])
+        plt.title('Distribusi Monetary Log per Cluster')
+        plt.xlabel('Cluster')
+        plt.ylabel('Monetary (Log Transformed)')
+        plt.xticks(rotation=45)
+        st.pyplot(plt)
+        
+        # Download button
+        csv_data = clustered_data.to_csv(index=False, encoding='utf-8-sig')
+        st.download_button("Download Hasil Clustering", csv_data, "rfm_segmentasi.csv", "text/csv")
