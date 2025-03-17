@@ -26,12 +26,12 @@ def load_data(file):
     
     # **Tambahkan fitur Repeat_Customer**
     if 'TOTAL_PRODUCT_MPF' in data.columns:
+        data['TOTAL_PRODUCT_MPF'] = pd.to_numeric(data['TOTAL_PRODUCT_MPF'], errors='coerce')
         data['Repeat_Customer'] = data['TOTAL_PRODUCT_MPF'].apply(lambda x: 1 if x > 1 else 0)
     else:
         data['Repeat_Customer'] = 0  # Default jika kolom tidak ada
     
     return data
-
 
 # Fungsi untuk clustering dengan K-Means
 def perform_clustering(data, n_clusters=4):
@@ -39,9 +39,13 @@ def perform_clustering(data, n_clusters=4):
     data['LAST_MPF_DATE'] = pd.to_datetime(data['LAST_MPF_DATE'], errors='coerce')
     data['Recency'] = (today_date - data['LAST_MPF_DATE']).dt.days
     
-    if 'CUST_NO' not in data.columns:
-        st.error("Kolom 'CUST_NO' tidak ditemukan dalam dataset!")
-        return pd.DataFrame()
+    # **Cek apakah semua kolom tersedia sebelum groupby()**
+    required_columns = ['CUST_NO', 'LAST_MPF_DATE', 'TOTAL_PRODUCT_MPF', 'TOTAL_AMOUNT_MPF', 'Repeat_Customer', 'Usia']
+    missing_columns = [col for col in required_columns if col not in data.columns]
+
+    if missing_columns:
+        st.error(f"Kolom berikut tidak ditemukan dalam dataset: {missing_columns}")
+        return pd.DataFrame()  # Mengembalikan DataFrame kosong agar tidak error
     
     rfm = data.groupby('CUST_NO').agg({
         'Recency': 'min',
