@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans
-from scipy.stats import zscore
+from sklearn.preprocessing import StandardScaler
 import datetime
 
 # Set default style
@@ -77,22 +77,23 @@ def perform_clustering(data, n_clusters=4):
         st.warning(f"Kolom dengan variansi nol ditemukan: {zero_variance_cols}. Kolom ini akan dihapus dari clustering.")
         features = [col for col in features if col not in zero_variance_cols]
 
-    # Normalisasi menggunakan Z-score
-    rfm_norm = rfm[features].apply(zscore)
+    # **Gunakan StandardScaler sebagai pengganti zscore**
+    scaler = StandardScaler()
+    rfm_scaled = scaler.fit_transform(rfm[features])
+
+    # **Konversi kembali ke DataFrame**
+    rfm_norm = pd.DataFrame(rfm_scaled, columns=features, index=rfm.index)
 
     # **Pastikan tidak ada NaN setelah normalisasi**
-    rfm_norm.fillna(0, inplace=True)
+    st.write("Jumlah NaN setelah normalisasi:", rfm_norm.isnull().sum())
 
-    # **Hapus baris yang mengandung NaN setelah normalisasi**
+    # **Hapus baris yang mengandung NaN sebelum K-Means**
     rfm_norm = rfm_norm.dropna()
-
-    # Pastikan jumlah baris tetap sinkron antara `rfm` dan `rfm_norm`
     rfm = rfm.loc[rfm_norm.index]
 
     # **Tambahkan Cek Sebelum K-Means**
     if rfm_norm.isnull().values.any():
         st.error("Data masih memiliki NaN sebelum K-Means! Periksa dataset.")
-        st.write(rfm_norm.isnull().sum())
         return pd.DataFrame()
 
     # K-Means
