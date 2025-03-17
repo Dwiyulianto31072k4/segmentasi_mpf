@@ -21,9 +21,17 @@ def load_data(file):
         data[col] = pd.to_datetime(data[col], errors='coerce')
     
     data['Usia'] = 2024 - data['BIRTH_DATE'].dt.year
-    data['CUST_NO'] = data['CUST_NO'].astype(str)  # Pastikan bertipe string
+    data['CUST_NO'] = data['CUST_NO'].astype(str)  # Pastikan CUST_NO bertipe string
     data = data.dropna(subset=['CUST_NO'])  # Hilangkan NaN jika ada
+    
+    # **Tambahkan fitur Repeat_Customer**
+    if 'TOTAL_PRODUCT_MPF' in data.columns:
+        data['Repeat_Customer'] = data['TOTAL_PRODUCT_MPF'].apply(lambda x: 1 if x > 1 else 0)
+    else:
+        data['Repeat_Customer'] = 0  # Default jika kolom tidak ada
+    
     return data
+
 
 # Fungsi untuk clustering dengan K-Means
 def perform_clustering(data, n_clusters=4):
