@@ -37,7 +37,7 @@ def perform_clustering(data, n_clusters=4):
     today_date = datetime.datetime(2024, 12, 31)
     data['LAST_MPF_DATE'] = pd.to_datetime(data['LAST_MPF_DATE'], errors='coerce')
 
-    # Jika LAST_MPF_DATE kosong, isi dengan tanggal lama agar tidak menghasilkan NaN di Recency
+    # Isi nilai NaN dengan tanggal lama agar tidak menyebabkan NaN di Recency
     data['Recency'] = (today_date - data['LAST_MPF_DATE']).dt.days.fillna(9999).astype(int)
     
     # Pastikan semua kolom yang dibutuhkan ada
@@ -75,7 +75,7 @@ def perform_clustering(data, n_clusters=4):
     # Pilih fitur untuk normalisasi
     features = ['Recency', 'Frequency_log', 'Monetary_log', 'Repeat_Customer', 'Usia_Segment']
     
-    # **Cek apakah ada kolom dengan variansi nol (semua nilai identik)**
+    # **Hapus kolom dengan variansi nol**
     zero_variance_cols = [col for col in features if rfm[col].std() == 0]
     if zero_variance_cols:
         st.warning(f"Kolom dengan variansi nol ditemukan: {zero_variance_cols}. Kolom ini akan dihapus dari clustering.")
@@ -84,9 +84,12 @@ def perform_clustering(data, n_clusters=4):
     # Normalisasi menggunakan Z-score
     rfm_norm = rfm[features].apply(zscore)
     
-    # **Tangani NaN setelah zscore**
-    rfm_norm.fillna(0, inplace=True)
-
+    # **Cek apakah ada NaN setelah normalisasi**
+    if rfm_norm.isnull().values.any():
+        st.error("Data masih memiliki NaN setelah normalisasi! Pastikan semua data telah dibersihkan.")
+        st.write("Cek jumlah NaN per kolom:", rfm_norm.isnull().sum())
+        return pd.DataFrame()
+    
     # K-Means
     kmeans = KMeans(n_clusters=n_clusters, init='k-means++', random_state=42, n_init=10)
     rfm['Cluster'] = kmeans.fit_predict(rfm_norm)
@@ -138,15 +141,6 @@ if uploaded_file is not None:
         plt.xlabel('Recency (Days)')
         plt.ylabel('Monetary (Log Transformed)')
         plt.legend()
-        st.pyplot(plt)
-        
-        # Boxplot
-        plt.figure(figsize=(12, 6))
-        sns.boxplot(x=clustered_data['Segmentasi_optimal'], y=clustered_data['Monetary_log'])
-        plt.title('Distribusi Monetary Log per Cluster')
-        plt.xlabel('Cluster')
-        plt.ylabel('Monetary (Log Transformed)')
-        plt.xticks(rotation=45)
         st.pyplot(plt)
         
         # Download button
