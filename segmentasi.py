@@ -31,7 +31,7 @@ def load_data(file):
     data['Repeat_Customer'] = data['TOTAL_PRODUCT_MPF'].apply(lambda x: 1 if x > 1 else 0)
     
     # Hapus baris yang mengandung NaN di kolom yang relevan
-    data = data.dropna(subset=['TOTAL_PRODUCT_MPF', 'TOTAL_AMOUNT_MPF', 'Usia'])
+    data = data.dropna(subset=['TOTAL_PRODUCT_MPF', 'TOTAL_AMOUNT_MPF', 'Usia', 'LAST_MPF_DATE'])
     
     return data
 
@@ -41,7 +41,7 @@ def perform_clustering(data, n_clusters=4):
     data['LAST_MPF_DATE'] = pd.to_datetime(data['LAST_MPF_DATE'], errors='coerce')
 
     # Hitung Recency
-    data['Recency'] = (today_date - data['LAST_MPF_DATE']).dt.days.fillna(9999).astype(int)
+    data['Recency'] = (today_date - data['LAST_MPF_DATE']).dt.days
     
     # Pastikan semua kolom yang dibutuhkan ada
     required_columns = ['CUST_NO', 'LAST_MPF_DATE', 'TOTAL_PRODUCT_MPF', 'TOTAL_AMOUNT_MPF', 'Repeat_Customer', 'Usia']
@@ -63,7 +63,7 @@ def perform_clustering(data, n_clusters=4):
     rfm.rename(columns={'TOTAL_PRODUCT_MPF': 'Frequency', 'TOTAL_AMOUNT_MPF': 'Monetary'}, inplace=True)
     
     # Hapus baris dengan NaN di kolom yang relevan
-    rfm = rfm.dropna(subset=['Frequency', 'Monetary', 'Usia'])
+    rfm = rfm.dropna(subset=['Frequency', 'Monetary', 'Usia', 'Recency'])
 
     # Log transformation
     rfm['Frequency_log'] = np.log1p(rfm['Frequency'])
