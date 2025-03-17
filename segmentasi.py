@@ -24,11 +24,14 @@ def load_data(file):
     data['Usia'] = 2024 - data['BIRTH_DATE'].dt.year.fillna(0).astype(int)
     
     # Pastikan CUST_NO tidak kosong dan bertipe string
-    data['CUST_NO'] = data['CUST_NO'].astype(str).fillna("Unknown")
-    data = data.dropna(subset=['CUST_NO'])  
+    data['CUST_NO'] = data['CUST_NO'].astype(str)
+    data = data.dropna(subset=['CUST_NO'])  # Hapus baris dengan CUST_NO yang NaN
 
     # Tambahkan Repeat_Customer
     data['Repeat_Customer'] = data['TOTAL_PRODUCT_MPF'].apply(lambda x: 1 if x > 1 else 0)
+    
+    # Hapus baris yang mengandung NaN di kolom yang relevan
+    data = data.dropna(subset=['TOTAL_PRODUCT_MPF', 'TOTAL_AMOUNT_MPF', 'Usia'])
     
     return data
 
@@ -59,9 +62,8 @@ def perform_clustering(data, n_clusters=4):
     
     rfm.rename(columns={'TOTAL_PRODUCT_MPF': 'Frequency', 'TOTAL_AMOUNT_MPF': 'Monetary'}, inplace=True)
     
-    # Handle NaN values
-    rfm['Frequency'].fillna(0, inplace=True)
-    rfm['Monetary'].fillna(0, inplace=True)
+    # Hapus baris dengan NaN di kolom yang relevan
+    rfm = rfm.dropna(subset=['Frequency', 'Monetary', 'Usia'])
 
     # Log transformation
     rfm['Frequency_log'] = np.log1p(rfm['Frequency'])
