@@ -14,17 +14,26 @@ sns.set_style("whitegrid")
 # Fungsi untuk memuat dan membersihkan data
 def load_data(file):
     data = pd.read_excel(file)
+    data.columns = data.columns.str.strip()  # Bersihkan spasi tersembunyi
+    
     date_cols = ['FIRST_PPC_DATE', 'FIRST_MPF_DATE', 'LAST_MPF_DATE', 'CONTRACT_ACTIVE_DATE', 'BIRTH_DATE']
     for col in date_cols:
         data[col] = pd.to_datetime(data[col], errors='coerce')
+    
     data['Usia'] = 2024 - data['BIRTH_DATE'].dt.year
+    data['CUST_NO'] = data['CUST_NO'].astype(str)  # Pastikan bertipe string
+    data = data.dropna(subset=['CUST_NO'])  # Hilangkan NaN jika ada
     return data
 
 # Fungsi untuk clustering dengan K-Means
 def perform_clustering(data, n_clusters=4):
     today_date = datetime.datetime(2024, 12, 31)
-    data['LAST_MPF_DATE'] = pd.to_datetime(data['LAST_MPF_DATE'])
+    data['LAST_MPF_DATE'] = pd.to_datetime(data['LAST_MPF_DATE'], errors='coerce')
     data['Recency'] = (today_date - data['LAST_MPF_DATE']).dt.days
+    
+    if 'CUST_NO' not in data.columns:
+        st.error("Kolom 'CUST_NO' tidak ditemukan dalam dataset!")
+        return pd.DataFrame()
     
     rfm = data.groupby('CUST_NO').agg({
         'Recency': 'min',
