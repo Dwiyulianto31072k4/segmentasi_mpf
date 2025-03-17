@@ -71,15 +71,25 @@ def perform_clustering(data, n_clusters=4):
 
     # Pastikan semua nilai NaN diisi sebelum clustering
     rfm.fillna(0, inplace=True)
-    
-    # Normalisasi
+
+    # Pilih fitur untuk normalisasi
     features = ['Recency', 'Frequency_log', 'Monetary_log', 'Repeat_Customer', 'Usia_Segment']
-    scaler = StandardScaler()
-    rfm_scaled = scaler.fit_transform(rfm[features])
+    
+    # **Cek apakah ada kolom dengan variansi nol (semua nilai identik)**
+    zero_variance_cols = [col for col in features if rfm[col].std() == 0]
+    if zero_variance_cols:
+        st.warning(f"Kolom dengan variansi nol ditemukan: {zero_variance_cols}. Kolom ini akan dihapus dari clustering.")
+        features = [col for col in features if col not in zero_variance_cols]
+
+    # Normalisasi menggunakan Z-score
+    rfm_norm = rfm[features].apply(zscore)
+    
+    # **Tangani NaN setelah zscore**
+    rfm_norm.fillna(0, inplace=True)
 
     # K-Means
     kmeans = KMeans(n_clusters=n_clusters, init='k-means++', random_state=42, n_init=10)
-    rfm['Cluster'] = kmeans.fit_predict(rfm_scaled)
+    rfm['Cluster'] = kmeans.fit_predict(rfm_norm)
     
     # Mapping segmentasi
     segment_map_optimal = {
