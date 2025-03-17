@@ -144,6 +144,41 @@ if uploaded_file is not None:
         plt.ylabel('Monetary (Log Transformed)')
         plt.legend()
         st.pyplot(plt)
+
+
+
+    # Tampilkan Ringkasan Statistik Per Segmen
+st.write("### Ringkasan Statistik Per Segmen")
+segment_stats = clustered_data.groupby('Segmentasi_optimal').agg({
+    'CUST_NO': 'count',
+    'Recency': 'mean',
+    'Frequency': 'mean',
+    'Monetary': 'mean'
+}).rename(columns={'CUST_NO': 'Jumlah Pelanggan'})
+
+st.dataframe(segment_stats)
+
+# Tambahkan Rekomendasi Tindakan
+st.write("### Rekomendasi Tindakan Berdasarkan Segmen")
+
+recommendations = {
+    "Potential Loyalists": "Dorong program loyalitas, diskon eksklusif, dan komunikasi rutin.",
+    "Occasional Buyers": "Berikan promo khusus untuk meningkatkan keterlibatan lebih lanjut.",
+    "Responsive Customers": "Ciptakan strategi pemasaran ulang (retargeting) untuk meningkatkan engagement.",
+    "Hibernating Customers": "Gunakan email reaktivasi dan promo menarik agar mereka kembali membeli."
+}
+
+for segment, advice in recommendations.items():
+    st.subheader(segment)
+    st.write(advice)
+
+# Tambahkan Opsi Filter untuk Data Hasil (Tanpa Download)
+st.write("### Tampilkan Data Berdasarkan Segmen")
+selected_segment = st.selectbox("Pilih Segmen:", clustered_data['Segmentasi_optimal'].unique())
+filtered_data = clustered_data[clustered_data['Segmentasi_optimal'] == selected_segment]
+st.write(f"Menampilkan data untuk segmen: **{selected_segment}**")
+st.dataframe(filtered_data)
+
         
         # Download button
         csv_data = clustered_data.to_csv(index=False, encoding='utf-8-sig')
