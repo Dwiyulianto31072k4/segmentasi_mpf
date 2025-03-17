@@ -87,6 +87,12 @@ def perform_clustering(data, n_clusters=4):
     # **Pastikan tidak ada NaN setelah normalisasi**
     st.write("Jumlah NaN setelah normalisasi:", rfm_norm.isnull().sum())
 
+    # **Jika ada NaN, tampilkan datanya untuk debugging**
+    if rfm_norm.isnull().values.any():
+        st.write("Data yang mengandung NaN setelah normalisasi:")
+        st.dataframe(rfm_norm[rfm_norm.isnull().any(axis=1)])
+        return pd.DataFrame()
+
     # **Hapus baris yang mengandung NaN sebelum K-Means**
     rfm_norm = rfm_norm.dropna()
     rfm = rfm.loc[rfm_norm.index]
