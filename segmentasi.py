@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 from scipy.stats import zscore
 import datetime
 
@@ -69,12 +68,9 @@ def perform_clustering(data, n_clusters=4):
     # Segmentasi usia
     rfm['Usia_Segment'] = rfm['Usia'].apply(lambda x: 1 if 25 <= x <= 50 else 0)
 
-    # Pastikan semua nilai NaN diisi sebelum clustering
-    rfm.fillna(0, inplace=True)
-
     # Pilih fitur untuk normalisasi
     features = ['Recency', 'Frequency_log', 'Monetary_log', 'Repeat_Customer', 'Usia_Segment']
-    
+
     # **Hapus kolom dengan variansi nol**
     zero_variance_cols = [col for col in features if rfm[col].std() == 0]
     if zero_variance_cols:
@@ -84,11 +80,20 @@ def perform_clustering(data, n_clusters=4):
     # Normalisasi menggunakan Z-score
     rfm_norm = rfm[features].apply(zscore)
 
+    # **Pastikan tidak ada NaN setelah normalisasi**
+    rfm_norm.fillna(0, inplace=True)
+
     # **Hapus baris yang mengandung NaN setelah normalisasi**
     rfm_norm = rfm_norm.dropna()
-    
+
     # Pastikan jumlah baris tetap sinkron antara `rfm` dan `rfm_norm`
     rfm = rfm.loc[rfm_norm.index]
+
+    # **Tambahkan Cek Sebelum K-Means**
+    if rfm_norm.isnull().values.any():
+        st.error("Data masih memiliki NaN sebelum K-Means! Periksa dataset.")
+        st.write(rfm_norm.isnull().sum())
+        return pd.DataFrame()
 
     # K-Means
     kmeans = KMeans(n_clusters=n_clusters, init='k-means++', random_state=42, n_init=10)
