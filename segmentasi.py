@@ -12,19 +12,21 @@ sns.set_style("whitegrid")
 
 # Fungsi untuk memuat dan membersihkan data
 def load_data(file):
-    data = pd.read_excel(file)
+    data = pd.read_excel(file, dtype={'CUST_NO': str})  # Pastikan CUST_NO tetap string
     data.columns = data.columns.str.strip()  # Bersihkan spasi tersembunyi
     
-    # Konversi kolom tanggal
+    # Daftar kolom tanggal
     date_cols = ['FIRST_PPC_DATE', 'FIRST_MPF_DATE', 'LAST_MPF_DATE', 'CONTRACT_ACTIVE_DATE', 'BIRTH_DATE']
+
     for col in date_cols:
-        data[col] = pd.to_datetime(data[col], errors='coerce')
-    
+        if col in data.columns:
+            data[col] = pd.to_numeric(data[col], errors='coerce')  # Konversi ke numerik jika dalam format yyyymmdd
+            data[col] = pd.to_datetime(data[col], format='%Y%m%d', errors='coerce')  # Konversi ke datetime
+
     # Hitung Usia
     data['Usia'] = 2024 - data['BIRTH_DATE'].dt.year.fillna(0).astype(int)
     
     # Pastikan CUST_NO tidak kosong dan bertipe string
-    data['CUST_NO'] = data['CUST_NO'].astype(str)
     data = data.dropna(subset=['CUST_NO'])  # Hapus baris dengan CUST_NO yang NaN
 
     # Tambahkan Repeat_Customer
@@ -34,6 +36,7 @@ def load_data(file):
     data = data.dropna(subset=['TOTAL_PRODUCT_MPF', 'TOTAL_AMOUNT_MPF', 'Usia', 'LAST_MPF_DATE'])
     
     return data
+
 
 # Fungsi untuk clustering dengan K-Means
 def perform_clustering(data, n_clusters=4):
