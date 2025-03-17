@@ -83,13 +83,13 @@ def perform_clustering(data, n_clusters=4):
 
     # Normalisasi menggunakan Z-score
     rfm_norm = rfm[features].apply(zscore)
+
+    # **Hapus baris yang mengandung NaN setelah normalisasi**
+    rfm_norm = rfm_norm.dropna()
     
-    # **Cek apakah ada NaN setelah normalisasi**
-    if rfm_norm.isnull().values.any():
-        st.error("Data masih memiliki NaN setelah normalisasi! Pastikan semua data telah dibersihkan.")
-        st.write("Cek jumlah NaN per kolom:", rfm_norm.isnull().sum())
-        return pd.DataFrame()
-    
+    # Pastikan jumlah baris tetap sinkron antara `rfm` dan `rfm_norm`
+    rfm = rfm.loc[rfm_norm.index]
+
     # K-Means
     kmeans = KMeans(n_clusters=n_clusters, init='k-means++', random_state=42, n_init=10)
     rfm['Cluster'] = kmeans.fit_predict(rfm_norm)
